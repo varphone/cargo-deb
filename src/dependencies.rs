@@ -37,12 +37,20 @@ pub fn resolve(path: &Path, target: &Option<String>) -> CDResult<Vec<String>> {
         ));
     }
 
-    log::debug!("dpkg-shlibdeps for {}: {}", path.display(), String::from_utf8_lossy(&output.stdout));
+    log::debug!(
+        "dpkg-shlibdeps for {}: {}",
+        path.display(),
+        String::from_utf8_lossy(&output.stdout)
+    );
 
-    let deps = output.stdout.lines()
+    let deps = output
+        .stdout
+        .lines()
         .filter_map(|line| line.ok())
         .find(|line| line.starts_with("shlibs:Depends="))
-        .ok_or(CargoDebError::Str("Failed to find dependency specification."))?
+        .ok_or(CargoDebError::Str(
+            "Failed to find dependency specification.",
+        ))?
         .trim_start_matches("shlibs:Depends=")
         .split(',')
         .map(|dep| dep.trim().to_string())

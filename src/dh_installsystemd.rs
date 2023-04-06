@@ -42,18 +42,18 @@ use crate::CDResult;
 const LIB_SYSTEMD_SYSTEM_DIR: &str = "lib/systemd/system/";
 const USR_LIB_TMPFILES_D_DIR: &str = "usr/lib/tmpfiles.d/";
 const SYSTEMD_UNIT_FILE_INSTALL_MAPPINGS: [(&str, &str, &str); 12] = [
-    ("",  "mount",   LIB_SYSTEMD_SYSTEM_DIR),
-    ("",  "path",    LIB_SYSTEMD_SYSTEM_DIR),
-    ("@", "path",    LIB_SYSTEMD_SYSTEM_DIR),
-    ("",  "service", LIB_SYSTEMD_SYSTEM_DIR),
+    ("", "mount", LIB_SYSTEMD_SYSTEM_DIR),
+    ("", "path", LIB_SYSTEMD_SYSTEM_DIR),
+    ("@", "path", LIB_SYSTEMD_SYSTEM_DIR),
+    ("", "service", LIB_SYSTEMD_SYSTEM_DIR),
     ("@", "service", LIB_SYSTEMD_SYSTEM_DIR),
-    ("",  "socket",  LIB_SYSTEMD_SYSTEM_DIR),
-    ("@", "socket",  LIB_SYSTEMD_SYSTEM_DIR),
-    ("",  "target",  LIB_SYSTEMD_SYSTEM_DIR),
-    ("@", "target",  LIB_SYSTEMD_SYSTEM_DIR),
-    ("",  "timer",   LIB_SYSTEMD_SYSTEM_DIR),
-    ("@", "timer",   LIB_SYSTEMD_SYSTEM_DIR),
-    ("",  "tmpfile", USR_LIB_TMPFILES_D_DIR),
+    ("", "socket", LIB_SYSTEMD_SYSTEM_DIR),
+    ("@", "socket", LIB_SYSTEMD_SYSTEM_DIR),
+    ("", "target", LIB_SYSTEMD_SYSTEM_DIR),
+    ("@", "target", LIB_SYSTEMD_SYSTEM_DIR),
+    ("", "timer", LIB_SYSTEMD_SYSTEM_DIR),
+    ("@", "timer", LIB_SYSTEMD_SYSTEM_DIR),
+    ("", "tmpfile", USR_LIB_TMPFILES_D_DIR),
 ];
 
 #[derive(Debug, PartialEq, Eq)]
@@ -188,10 +188,10 @@ fn is_comment(s: &str) -> bool {
 /// See:
 ///   <https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines>
 fn unquote(s: &str) -> &str {
-    if s.len() > 1 &&
-       ((s.starts_with('"') && s.ends_with('"')) ||
-       (s.starts_with('\'') && s.ends_with('\''))) {
-        &s[1..s.len()-1]
+    if s.len() > 1
+        && ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')))
+    {
+        &s[1..s.len() - 1]
     } else {
         s
     }
@@ -218,7 +218,12 @@ fn unquote(s: &str) -> &str {
 ///
 /// See:
 ///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n288>
-pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &dyn Listener) -> CDResult<ScriptFragments> {
+pub fn generate(
+    package: &str,
+    assets: &[Asset],
+    options: &Options,
+    listener: &dyn Listener,
+) -> CDResult<ScriptFragments> {
     let mut scripts = ScriptFragments::new();
 
     // add postinst code blocks to handle tmpfiles
@@ -231,8 +236,15 @@ pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &d
         .join(" ");
 
     if !tmp_file_names.is_empty() {
-        autoscript(&mut scripts, package, "postinst", "postinst-init-tmpfiles",
-            &map!{ "TMPFILES" => tmp_file_names }, false, listener)?;
+        autoscript(
+            &mut scripts,
+            package,
+            "postinst",
+            "postinst-init-tmpfiles",
+            &map! { "TMPFILES" => tmp_file_names },
+            false,
+            listener,
+        )?;
     }
 
     // add postinst, prerm, and postrm code blocks to handle activation,
@@ -272,14 +284,21 @@ pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &d
 
         // for each unit that we have not yet processed
         for unit in units.iter() {
-            listener.info(format!("Determining augmentations needed for systemd unit {unit}"));
+            listener.info(format!(
+                "Determining augmentations needed for systemd unit {unit}"
+            ));
 
             // the unit has to be started
             start_units.insert(unit.clone());
 
             // get the unit file contents
             let needle = Path::new(LIB_SYSTEMD_SYSTEM_DIR).join(unit);
-            let data = assets.iter().find(move |&item| item.c.target_path == needle).unwrap().source.data()?;
+            let data = assets
+                .iter()
+                .find(move |&item| item.c.target_path == needle)
+                .unwrap()
+                .source
+                .data()?;
             let reader = data.into_owned();
 
             // for every line in the file look for specific keys that we are
@@ -299,7 +318,11 @@ pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &d
             // We also strip the value of any surrounding quotes because
             // that's what the actual dh_installsystemd code does:
             //   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n210
-            for line in reader.lines().map(|line| line.unwrap()).filter(|s| !is_comment(s)) {
+            for line in reader
+                .lines()
+                .map(|line| line.unwrap())
+                .filter(|s| !is_comment(s))
+            {
                 let possible_kv_pair = line.splitn(2, '=').map(|s| s.trim()).next_tuple();
                 if let Some((key, value)) = possible_kv_pair {
                     let other_unit = unquote(value).to_string();
@@ -316,10 +339,10 @@ pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &d
                             if seen.insert(other_unit.clone()) {
                                 also_units.insert(other_unit);
                             }
-                        },
+                        }
                         "Alias" => {
                             aliases.insert(other_unit);
-                        },
+                        }
                         _ => (),
                     };
                 } else if line.starts_with("[Install]") {
@@ -339,11 +362,25 @@ pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &d
             false => "postinst-systemd-enable",
         };
         for unit in &enable_units {
-            autoscript(&mut scripts, package, "postinst", snippet,
-                &map!{ "UNITFILE" => unit.clone() }, true, listener)?;
+            autoscript(
+                &mut scripts,
+                package,
+                "postinst",
+                snippet,
+                &map! { "UNITFILE" => unit.clone() },
+                true,
+                listener,
+            )?;
         }
-        autoscript(&mut scripts, package, "postrm", "postrm-systemd",
-            &map!{ "UNITFILES" => enable_units.join(" ") }, false, listener)?;
+        autoscript(
+            &mut scripts,
+            package,
+            "postrm",
+            "postrm-systemd",
+            &map! { "UNITFILES" => enable_units.join(" ") },
+            false,
+            listener,
+        )?;
     }
 
     // update the maintainer scripts to start units, where the exact action to
@@ -358,29 +395,69 @@ pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &d
                 true => {
                     snippet = "postinst-systemd-restartnostart";
                     replace.insert("RESTART_ACTION", "try-restart".into());
-                },
+                }
                 false => {
                     snippet = "postinst-systemd-restart";
                     replace.insert("RESTART_ACTION", "restart".into());
                 }
             };
-            autoscript(&mut scripts, package, "postinst", snippet, &replace, true, listener)?;
+            autoscript(
+                &mut scripts,
+                package,
+                "postinst",
+                snippet,
+                &replace,
+                true,
+                listener,
+            )?;
         } else if !options.no_start {
             // (stop|start) service (before|after) upgrade
-            autoscript(&mut scripts, package, "postinst", "postinst-systemd-start", &replace, true, listener)?;
+            autoscript(
+                &mut scripts,
+                package,
+                "postinst",
+                "postinst-systemd-start",
+                &replace,
+                true,
+                listener,
+            )?;
         }
 
         if options.no_stop_on_upgrade || options.restart_after_upgrade {
             // stop service only on remove
-            autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, true, listener)?;
+            autoscript(
+                &mut scripts,
+                package,
+                "prerm",
+                "prerm-systemd-restart",
+                &replace,
+                true,
+                listener,
+            )?;
         } else if !options.no_start {
             // always stop service
-            autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, true, listener)?;
+            autoscript(
+                &mut scripts,
+                package,
+                "prerm",
+                "prerm-systemd",
+                &replace,
+                true,
+                listener,
+            )?;
         }
 
         // Run this with "default" order so it is always after other service
         // related autosnippets.
-		autoscript(&mut scripts, package, "postrm", "postrm-systemd-reload-only", &replace, false, listener)?;
+        autoscript(
+            &mut scripts,
+            package,
+            "postrm",
+            "postrm-systemd-reload-only",
+            &replace,
+            false,
+            listener,
+        )?;
     }
 
     Ok(scripts)
@@ -467,7 +544,11 @@ mod tests {
         assert!(pkg_unit_files.is_empty());
     }
 
-    fn assert_eq_found_unit(pkg_unit_files: &PackageUnitFiles, expected_install_path: &str, source_path: &str) {
+    fn assert_eq_found_unit(
+        pkg_unit_files: &PackageUnitFiles,
+        expected_install_path: &str,
+        source_path: &str,
+    ) {
         let expected = InstallRecipe {
             path: PathBuf::from(expected_install_path),
             mode: 0o644,
@@ -492,13 +573,41 @@ mod tests {
             "debian/mypkg.myunit.service", // demonstrates lack of unit name
         ]);
         let pkg_unit_files = find_units(Path::new("debian"), "mypkg", None);
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.mount",   "debian/mypkg.mount");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.path",   "debian/mypkg@.path");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.service", "debian/service");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.socket", "debian/mypkg@.socket");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.target",  "debian/mypkg.target");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.timer",  "debian/mypkg@.timer");
-        assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/mypkg.conf",    "debian/mypkg.tmpfile");
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/mypkg.mount",
+            "debian/mypkg.mount",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/mypkg@.path",
+            "debian/mypkg@.path",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/mypkg.service",
+            "debian/service",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/mypkg@.socket",
+            "debian/mypkg@.socket",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/mypkg.target",
+            "debian/mypkg.target",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/mypkg@.timer",
+            "debian/mypkg@.timer",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "usr/lib/tmpfiles.d/mypkg.conf",
+            "debian/mypkg.tmpfile",
+        );
         assert_eq!(7, pkg_unit_files.len());
     }
 
@@ -532,15 +641,43 @@ mod tests {
 
         let pkg_unit_files = find_units(Path::new("debian"), "mypkg", Some("myunit"));
         // note the "myunit" target names, even when the match was less specific
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.mount",   "debian/mypkg.myunit.mount");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.path",   "debian/mypkg@.myunit.path");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.service", "debian/mypkg.myunit.service");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.socket", "debian/mypkg@.myunit.socket");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.target",  "debian/target");
-        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.timer",  "debian/mypkg@.myunit.timer");
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/myunit.mount",
+            "debian/mypkg.myunit.mount",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/myunit@.path",
+            "debian/mypkg@.myunit.path",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/myunit.service",
+            "debian/mypkg.myunit.service",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/myunit@.socket",
+            "debian/mypkg@.myunit.socket",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/myunit.target",
+            "debian/target",
+        );
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "lib/systemd/system/myunit@.timer",
+            "debian/mypkg@.myunit.timer",
+        );
 
         // note the changed file extension
-        assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/myunit.conf",    "debian/mypkg.tmpfile");
+        assert_eq_found_unit(
+            &pkg_unit_files,
+            "usr/lib/tmpfiles.d/myunit.conf",
+            "debian/mypkg.tmpfile",
+        );
 
         assert_eq!(7, pkg_unit_files.len());
     }
@@ -641,8 +778,14 @@ mod tests {
 
         // Verify the content of the added comment lines
         let mut lines = created_text.lines();
-        assert!(lines.next().unwrap().starts_with("# Automatically added by"));
-        assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
+        assert!(lines
+            .next()
+            .unwrap()
+            .starts_with("# Automatically added by"));
+        assert_eq!(
+            lines.nth_back(0).unwrap(),
+            "# End automatically added section"
+        );
 
         // Check that the autoscript fragment lines were properly copied
         // into the created script complete with expected substitutions
@@ -650,7 +793,8 @@ mod tests {
         let expected_autoscript_text = expected_autoscript_text.trim_end();
         let start1 = 1;
         let end1 = start1 + autoscript_line_count;
-        let created_autoscript_text = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
+        let created_autoscript_text =
+            created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
         assert_ne!(expected_autoscript_text, autoscript_text);
         assert_eq!(expected_autoscript_text, created_autoscript_text);
     }
@@ -707,41 +851,46 @@ mod tests {
         assert_eq!(0, fragments.len());
     }
 
-    #[rstest(ip, inst, ne, rau, ns, nsou,
-      case("ult", false, false, false, false, false),
-
-      case("lss", false, false, false, false, false),
-      case("lss", false, false, false, false, true),
-      case("lss", false, false, false, true,  false),
-      case("lss", false, false, false, true,  true),
-      case("lss", false, false, true,  false, false),
-      case("lss", false, false, true,  false,  true),
-      case("lss", false, false, true,  true,  false),
-      case("lss", false, false, true,  true,  true),
-      case("lss", false, true,  false, false, false),
-      case("lss", false, true,  false, false, true),
-      case("lss", false, true,  false, true,  false),
-      case("lss", false, true,  false, true,  true),
-      case("lss", false, true,  true,  false, false),
-      case("lss", false, true,  true,  false,  true),
-      case("lss", false, true,  true,  true,  false),
-      case("lss", false, true,  true,  true,  true),
-      case("lss", true,  false, false, false, false),
-      case("lss", true,  false, false, false, true),
-      case("lss", true,  false, false, true,  false),
-      case("lss", true,  false, false, true,  true),
-      case("lss", true,  false, true,  false, false),
-      case("lss", true,  false, true,  false,  true),
-      case("lss", true,  false, true,  true,  false),
-      case("lss", true,  false, true,  true,  true),
-      case("lss", true,  true,  false, false, false),
-      case("lss", true,  true,  false, false, true),
-      case("lss", true,  true,  false, true,  false),
-      case("lss", true,  true,  false, true,  true),
-      case("lss", true,  true,  true,  false, false),
-      case("lss", true,  true,  true,  false,  true),
-      case("lss", true,  true,  true,  true,  false),
-      case("lss", true,  true,  true,  true,  true),
+    #[rstest(
+        ip,
+        inst,
+        ne,
+        rau,
+        ns,
+        nsou,
+        case("ult", false, false, false, false, false),
+        case("lss", false, false, false, false, false),
+        case("lss", false, false, false, false, true),
+        case("lss", false, false, false, true, false),
+        case("lss", false, false, false, true, true),
+        case("lss", false, false, true, false, false),
+        case("lss", false, false, true, false, true),
+        case("lss", false, false, true, true, false),
+        case("lss", false, false, true, true, true),
+        case("lss", false, true, false, false, false),
+        case("lss", false, true, false, false, true),
+        case("lss", false, true, false, true, false),
+        case("lss", false, true, false, true, true),
+        case("lss", false, true, true, false, false),
+        case("lss", false, true, true, false, true),
+        case("lss", false, true, true, true, false),
+        case("lss", false, true, true, true, true),
+        case("lss", true, false, false, false, false),
+        case("lss", true, false, false, false, true),
+        case("lss", true, false, false, true, false),
+        case("lss", true, false, false, true, true),
+        case("lss", true, false, true, false, false),
+        case("lss", true, false, true, false, true),
+        case("lss", true, false, true, true, false),
+        case("lss", true, false, true, true, true),
+        case("lss", true, true, false, false, false),
+        case("lss", true, true, false, false, true),
+        case("lss", true, true, false, true, false),
+        case("lss", true, true, false, true, true),
+        case("lss", true, true, true, false, false),
+        case("lss", true, true, true, false, true),
+        case("lss", true, true, true, true, false),
+        case("lss", true, true, true, true, true)
     )]
     #[test]
     fn generate_creates_expected_autoscript_fragments(
@@ -787,11 +936,14 @@ Description=A test unit
 
 [Service]
 Type=simple
-".to_owned();
+"
+        .to_owned();
 
         if inst {
-            unit_file_content.push_str("[Install]
-WantedBy=multi-user.target");
+            unit_file_content.push_str(
+                "[Install]
+WantedBy=multi-user.target",
+            );
         }
 
         set_test_fs_path_content(unit_file_path, unit_file_content);
@@ -860,7 +1012,7 @@ WantedBy=multi-user.target");
             "ult" => {
                 assert_eq!(1, get_read_count("postinst-init-tmpfiles"));
                 autoscript_fragments_to_check_for.insert("postinst.debhelper");
-            },
+            }
             "lss" => {
                 assert_eq!(1, get_read_count(unit_file_path));
                 if inst {
@@ -875,15 +1027,19 @@ WantedBy=multi-user.target");
                 match options.restart_after_upgrade {
                     true => {
                         match options.no_start {
-                            true => assert_eq!(1, get_read_count("postinst-systemd-restartnostart")),
+                            true => {
+                                assert_eq!(1, get_read_count("postinst-systemd-restartnostart"))
+                            }
                             false => assert_eq!(1, get_read_count("postinst-systemd-restart")),
                         };
                         autoscript_fragments_to_check_for.insert("postinst.service");
-                    },
-                    false => if !options.no_start {
-                        assert_eq!(1, get_read_count("postinst-systemd-start"));
-                        autoscript_fragments_to_check_for.insert("postinst.service");
-                    },
+                    }
+                    false => {
+                        if !options.no_start {
+                            assert_eq!(1, get_read_count("postinst-systemd-start"));
+                            autoscript_fragments_to_check_for.insert("postinst.service");
+                        }
+                    }
                 }
                 if options.restart_after_upgrade || options.no_stop_on_upgrade {
                     assert_eq!(1, get_read_count("prerm-systemd-restart"));
@@ -894,7 +1050,7 @@ WantedBy=multi-user.target");
                 }
                 assert_eq!(1, get_read_count("postrm-systemd-reload-only"));
                 autoscript_fragments_to_check_for.insert("postrm.debhelper");
-            },
+            }
             _ => unreachable!(),
         }
 

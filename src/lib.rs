@@ -18,7 +18,8 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 */
 
-#[macro_use] extern crate quick_error;
+#[macro_use]
+extern crate quick_error;
 
 pub mod compress;
 pub mod control;
@@ -58,7 +59,10 @@ const DEFAULT_TARGET: &str = env!("CARGO_DEB_DEFAULT_TARGET");
 
 /// Run `dpkg` to install `deb` archive at the given path
 pub fn install_deb(path: &Path) -> CDResult<()> {
-    let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path)
+    let status = Command::new("sudo")
+        .arg("dpkg")
+        .arg("-i")
+        .arg(path)
         .status()?;
     if !status.success() {
         return Err(CargoDebError::InstallFailed);
@@ -89,7 +93,13 @@ pub fn remove_deb_temp_directory(options: &Config) {
 }
 
 /// Builds a binary with `cargo build`
-pub fn cargo_build(options: &Config, target: Option<&str>, build_command: &str, build_flags: &[String], verbose: bool) -> CDResult<()> {
+pub fn cargo_build(
+    options: &Config,
+    target: Option<&str>,
+    build_command: &str,
+    build_flags: &[String],
+    verbose: bool,
+) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.current_dir(&options.package_manifest_dir);
     cmd.arg(build_command);
@@ -102,8 +112,13 @@ pub fn cargo_build(options: &Config, target: Option<&str>, build_command: &str, 
     if let Some(target) = target {
         cmd.args(["--target", target]);
         // Set helpful defaults for cross-compiling
-        if env::var_os("PKG_CONFIG_ALLOW_CROSS").is_none() && env::var_os("PKG_CONFIG_PATH").is_none() {
-            let pkg_config_path = format!("/usr/lib/{}/pkgconfig", debian_triple_from_rust_triple(target));
+        if env::var_os("PKG_CONFIG_ALLOW_CROSS").is_none()
+            && env::var_os("PKG_CONFIG_PATH").is_none()
+        {
+            let pkg_config_path = format!(
+                "/usr/lib/{}/pkgconfig",
+                debian_triple_from_rust_triple(target)
+            );
             if Path::new(&pkg_config_path).exists() {
                 cmd.env("PKG_CONFIG_ALLOW_CROSS", "1");
                 cmd.env("PKG_CONFIG_PATH", pkg_config_path);
@@ -120,7 +135,8 @@ pub fn cargo_build(options: &Config, target: Option<&str>, build_command: &str, 
 
     log::debug!("cargo build {:?}", cmd.get_args());
 
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
     if !status.success() {
         return Err(CargoDebError::BuildFailed);
@@ -135,20 +151,23 @@ fn debian_triple_from_rust_triple(rust_target_triple: &str) -> String {
     let abi = p.last().unwrap_or("");
 
     let (darch, dabi) = match (arch, abi) {
-        ("i586", _) |
-        ("i686", _) => ("i386", "gnu"),
+        ("i586", _) | ("i686", _) => ("i386", "gnu"),
         ("x86_64", _) => ("x86_64", "gnu"),
         ("aarch64", _) => ("aarch64", "gnu"),
-        (arm, abi) if arm.starts_with("arm") || arm.starts_with("thumb") => {
-            ("arm", if abi.ends_with("hf") {"gnueabihf"} else {"gnueabi"})
-        },
+        (arm, abi) if arm.starts_with("arm") || arm.starts_with("thumb") => (
+            "arm",
+            if abi.ends_with("hf") {
+                "gnueabihf"
+            } else {
+                "gnueabi"
+            },
+        ),
         ("mipsel", _) => ("mipsel", "gnu"),
         (risc, _) if risc.starts_with("riscv64") => ("riscv64", "gnu"),
         (arch, abi) => (arch, abi),
     };
     format!("{darch}-linux-{dabi}")
 }
-
 
 /// Debianizes the architecture name. Weirdly, architecture and multiarch use different naming conventions in Debian!
 pub(crate) fn debian_architecture_from_rust_triple(target: &str) -> &str {
@@ -189,7 +208,12 @@ fn ensure_success(status: ExitStatus) -> io::Result<()> {
 }
 
 /// Strips the binary that was created with cargo
-pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &dyn Listener, separate_file: bool) -> CDResult<()> {
+pub fn strip_binaries(
+    options: &mut Config,
+    target: Option<&str>,
+    listener: &dyn Listener,
+    separate_file: bool,
+) -> CDResult<()> {
     let mut cargo_config = None;
     let objcopy_tmp;
     let strip_tmp;

@@ -42,5 +42,8 @@ impl AsUnixPathBytes for Path {
 
 #[test]
 fn unix_path() {
-    assert_eq!(b"foo/bar/baz"[..], Path::new("foo/bar/baz").as_unix_path()[..]);
+    assert_eq!(
+        b"foo/bar/baz"[..],
+        Path::new("foo/bar/baz").as_unix_path()[..]
+    );
 }

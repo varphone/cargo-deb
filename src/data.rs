@@ -1,18 +1,23 @@
-use std::io::{Read, self};
 use crate::error::*;
 use crate::listener::Listener;
-use crate::manifest::{Asset, Config, IsBuilt, AssetSource};
+use crate::manifest::{Asset, AssetSource, Config, IsBuilt};
 use crate::tararchive::Archive;
+use flate2::bufread::GzEncoder;
 use flate2::Compression;
 use md5::Digest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
-use flate2::bufread::GzEncoder;
 
 /// Generates an uncompressed tar archive and hashes of its files
-pub fn generate_archive<W: Write>(dest: W, options: &Config, time: u64, listener: &dyn Listener) -> CDResult<(W, HashMap<PathBuf, Digest>)> {
+pub fn generate_archive<W: Write>(
+    dest: W,
+    options: &Config,
+    time: u64,
+    listener: &dyn Listener,
+) -> CDResult<(W, HashMap<PathBuf, Digest>)> {
     let mut archive = Archive::new(dest, time);
     let copy_hashes = archive_files(&mut archive, options, listener)?;
     Ok((archive.into_inner()?, copy_hashes))
@@ -26,15 +31,23 @@ pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<
                 // The input is plaintext, but the debian package should contain gzipped one.
                 gzipped(&content)
             })
-            .map_err(move |e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))?;
+            .map_err(move |e| {
+                CargoDebError::IoFile("unable to read changelog file", e, path.into())
+            })?;
         Ok(Some(changelog))
     } else {
         Ok(None)
     }
 }
 
-fn append_copyright_metadata(copyright: &mut Vec<u8>, options: &Config) -> Result<(), CargoDebError> {
-    writeln!(copyright, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/")?;
+fn append_copyright_metadata(
+    copyright: &mut Vec<u8>,
+    options: &Config,
+) -> Result<(), CargoDebError> {
+    writeln!(
+        copyright,
+        "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
+    )?;
     writeln!(copyright, "Upstream-Name: {}", options.name)?;
     if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
         writeln!(copyright, "Source: {source}")?;
@@ -50,8 +63,9 @@ fn append_copyright_metadata(copyright: &mut Vec<u8>, options: &Config) -> Resul
 pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
     let mut copyright: Vec<u8> = Vec::new();
     if let Some(ref path) = options.license_file {
-        let license_string = fs::read_to_string(options.path_in_package(path))
-            .map_err(|e| CargoDebError::IoFile("unable to read license file", e, path.to_owned()))?;
+        let license_string = fs::read_to_string(options.path_in_package(path)).map_err(|e| {
+            CargoDebError::IoFile("unable to read license file", e, path.to_owned())
+        })?;
         if !has_copyright_metadata(&license_string) {
             append_copyright_metadata(&mut copyright, options)?;
         }
@@ -75,8 +89,12 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
 }
 
 fn has_copyright_metadata(file: &str) -> bool {
-    file.lines().take(10)
-        .any(|l| l.starts_with("License: ") || l.starts_with("Source: ") || l.starts_with("Upstream-Name: ") || l.starts_with("Format: "))
+    file.lines().take(10).any(|l| {
+        l.starts_with("License: ")
+            || l.starts_with("Source: ")
+            || l.starts_with("Upstream-Name: ")
+            || l.starts_with("Format: ")
+    })
 }
 
 /// Compress man pages and other assets per Debian Policy.
@@ -100,7 +118,14 @@ pub fn compress_assets(options: &mut Config, listener: &dyn Listener) -> CDResul
     for (idx, asset) in options.assets.resolved.iter().enumerate() {
         let target_path_str = asset.c.target_path.to_string_lossy();
         if needs_compression(&target_path_str) {
-            listener.info(format!("Compressing '{}'", asset.source.path().unwrap_or_else(|| Path::new("-")).display()));
+            listener.info(format!(
+                "Compressing '{}'",
+                asset
+                    .source
+                    .path()
+                    .unwrap_or_else(|| Path::new("-"))
+                    .display()
+            ));
             new_assets.push(Asset::new(
                 crate::manifest::AssetSource::Data(gzipped(&asset.source.data()?)?),
                 format!("{target_path_str}.gz").into(),
@@ -123,20 +148,30 @@ pub fn compress_assets(options: &mut Config, listener: &dyn Listener) -> CDResul
 
 /// Copies all the files to be packaged into the tar archive.
 /// Returns MD5 hashes of files copied
-fn archive_files<W: Write>(archive: &mut Archive<W>, options: &Config, listener: &dyn Listener) -> CDResult<HashMap<PathBuf, Digest>> {
+fn archive_files<W: Write>(
+    archive: &mut Archive<W>,
+    options: &Config,
+    listener: &dyn Listener,
+) -> CDResult<HashMap<PathBuf, Digest>> {
     let (send, recv) = crossbeam_channel::bounded(2);
     std::thread::scope(move |s| {
         let num_items = options.assets.resolved.len();
         let hash_thread = s.spawn(move || {
             let mut hashes = HashMap::with_capacity(num_items);
-            hashes.extend(recv.into_iter().map(|(path, data)| {
-                (path, md5::compute(&data))
-            }));
+            hashes.extend(
+                recv.into_iter()
+                    .map(|(path, data)| (path, md5::compute(&data))),
+            );
             hashes
         });
         for asset in &options.assets.resolved {
-            let mut log_line = format!("{} -> {}",
-                asset.source.path().unwrap_or_else(|| Path::new("-")).display(),
+            let mut log_line = format!(
+                "{} -> {}",
+                asset
+                    .source
+                    .path()
+                    .unwrap_or_else(|| Path::new("-"))
+                    .display(),
                 asset.c.target_path.display()
             );
             if let Some(len) = asset.source.file_size() {
@@ -155,7 +190,7 @@ fn archive_files<W: Write>(archive: &mut Archive<W>, options: &Config, listener:
                     let out_data = asset.source.data()?;
                     archive.file(&asset.c.target_path, &out_data, asset.c.chmod)?;
                     send.send((asset.c.target_path.clone(), out_data)).unwrap();
-                },
+                }
             }
         }
         drop(send);

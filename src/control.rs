@@ -21,7 +21,10 @@ pub struct ControlArchiveBuilder<'l, W: Write> {
 
 impl<'l, W: Write> ControlArchiveBuilder<'l, W> {
     pub fn new(dest: W, time: u64, listener: &'l dyn Listener) -> Self {
-        Self { archive: Archive::new(dest, time), listener }
+        Self {
+            archive: Archive::new(dest, time),
+            listener,
+        }
     }
 
     /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
@@ -64,7 +67,10 @@ impl<'l, W: Write> ControlArchiveBuilder<'l, W> {
     /// should be inserted.
     fn generate_scripts(&mut self, option: &Config) -> CDResult<()> {
         if let Some(ref maintainer_scripts_dir) = option.maintainer_scripts {
-            let maintainer_scripts_dir = option.package_manifest_dir.as_path().join(maintainer_scripts_dir);
+            let maintainer_scripts_dir = option
+                .package_manifest_dir
+                .as_path()
+                .join(maintainer_scripts_dir);
             let mut scripts = ScriptFragments::with_capacity(0);
 
             if let Some(systemd_units_config_vec) = &option.systemd_units {
@@ -88,13 +94,21 @@ impl<'l, W: Write> ControlArchiveBuilder<'l, W> {
                         &mut scripts,
                         &option.name,
                         unit_name,
-                        self.listener)?;
+                        self.listener,
+                    )?;
                 }
             }
 
             // Add maintainer scripts to the archive, either those supplied by the
             // user or if available prefer modified versions generated above.
-            for name in &["config", "preinst", "postinst", "prerm", "postrm", "templates"] {
+            for name in &[
+                "config",
+                "preinst",
+                "postinst",
+                "prerm",
+                "postrm",
+                "templates",
+            ] {
                 let mut script = scripts.remove(&name.to_string());
 
                 if script.is_none() {
@@ -119,7 +133,11 @@ impl<'l, W: Write> ControlArchiveBuilder<'l, W> {
     }
 
     /// Creates the md5sums file which contains a list of all contained files and the md5sums of each.
-    pub fn generate_md5sums(&mut self, options: &Config, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<()> {
+    pub fn generate_md5sums(
+        &mut self,
+        options: &Config,
+        asset_hashes: HashMap<PathBuf, Digest>,
+    ) -> CDResult<()> {
         let mut md5sums: Vec<u8> = Vec::new();
 
         // Collect md5sums from each asset in the archive (excludes symlinks).
@@ -164,9 +182,11 @@ impl<'l, W: Write> ControlArchiveBuilder<'l, W> {
         writeln!(&mut control, "Priority: {}", options.priority)?;
         writeln!(&mut control, "Maintainer: {}", options.maintainer)?;
 
-        let installed_size = options.assets.resolved
+        let installed_size = options
+            .assets
+            .resolved
             .iter()
-            .map(|m| (m.source.file_size().unwrap_or(0)+2047)/1024) // assume 1KB of fs overhead per file
+            .map(|m| (m.source.file_size().unwrap_or(0) + 2047) / 1024) // assume 1KB of fs overhead per file
             .sum::<u64>();
 
         writeln!(&mut control, "Installed-Size: {installed_size}")?;
@@ -282,7 +302,7 @@ mod tests {
 
     use super::*;
     use crate::listener::MockListener;
-    use crate::manifest::{Asset, AssetSource, SystemdUnitsConfig, IsBuilt};
+    use crate::manifest::{Asset, AssetSource, IsBuilt, SystemdUnitsConfig};
     use crate::util::tests::{add_test_fs_paths, set_test_fs_path_content};
     use std::io::prelude::Read;
 
@@ -294,15 +314,29 @@ mod tests {
             .to_string()
     }
 
-    fn decode_name<R>(entry: &tar::Entry<R>) -> String where R: Read {
-        std::str::from_utf8(&entry.path_bytes()).unwrap().to_string()
+    fn decode_name<R>(entry: &tar::Entry<R>) -> String
+    where
+        R: Read,
+    {
+        std::str::from_utf8(&entry.path_bytes())
+            .unwrap()
+            .to_string()
     }
 
-    fn decode_names<R>(ar: &mut tar::Archive<R>) -> Vec<String> where R: Read {
-        ar.entries().unwrap().map(|e| decode_name(&e.unwrap())).collect()
+    fn decode_names<R>(ar: &mut tar::Archive<R>) -> Vec<String>
+    where
+        R: Read,
+    {
+        ar.entries()
+            .unwrap()
+            .map(|e| decode_name(&e.unwrap()))
+            .collect()
     }
 
-    fn extract_contents<R>(ar: &mut tar::Archive<R>) -> HashMap<String, String> where R: Read {
+    fn extract_contents<R>(ar: &mut tar::Archive<R>) -> HashMap<String, String>
+    where
+        R: Read,
+    {
         let mut out = HashMap::new();
         for entry in ar.entries().unwrap() {
             let mut unwrapped = entry.unwrap();
@@ -316,7 +350,11 @@ mod tests {
     }
 
     #[track_caller]
-    fn prepare<'l, W: Write>(dest: W, package_name: Option<&str>, mock_listener: &'l mut MockListener) -> (Config, ControlArchiveBuilder<'l, W>) {
+    fn prepare<'l, W: Write>(
+        dest: W,
+        package_name: Option<&str>,
+        mock_listener: &'l mut MockListener,
+    ) -> (Config, ControlArchiveBuilder<'l, W>) {
         mock_listener.expect_info().return_const(());
 
         let mut config = Config::from_manifest(
@@ -337,7 +375,11 @@ mod tests {
         // to the absolute path we find ourselves in at test run time, but
         // instead have to match exactly the paths looked up based on the
         // value of the manifest dir.
-        config.package_manifest_dir = config.package_manifest_dir.strip_prefix(env!("CARGO_MANIFEST_DIR")).unwrap().to_path_buf();
+        config.package_manifest_dir = config
+            .package_manifest_dir
+            .strip_prefix(env!("CARGO_MANIFEST_DIR"))
+            .unwrap()
+            .to_path_buf();
 
         let ar = ControlArchiveBuilder::new(dest, 0, mock_listener);
 
@@ -389,11 +431,17 @@ mod tests {
             "test-resources/testroot/testchild/debian/postrm",
             "test-resources/testroot/testchild/debian/templates",
         ];
-        generate_scripts_for_package_without_systemd_unit(Some("test_child"), &maintainer_script_paths);
+        generate_scripts_for_package_without_systemd_unit(
+            Some("test_child"),
+            &maintainer_script_paths,
+        );
     }
 
     #[track_caller]
-    fn generate_scripts_for_package_without_systemd_unit(package_name: Option<&str>, maintainer_script_paths: &[&'static str]) {
+    fn generate_scripts_for_package_without_systemd_unit(
+        package_name: Option<&str>,
+        maintainer_script_paths: &[&'static str],
+    ) {
         let mut listener = MockListener::new();
         let (mut config, mut in_ar) = prepare(vec![], package_name, &mut listener);
 
@@ -407,7 +455,9 @@ mod tests {
         }
 
         // specify a path relative to the (root or workspace child) package
-        config.maintainer_scripts.get_or_insert(PathBuf::from("debian"));
+        config
+            .maintainer_scripts
+            .get_or_insert(PathBuf::from("debian"));
 
         // generate scripts and store them in the given archive
         in_ar.generate_scripts(&config).unwrap();
@@ -435,25 +485,65 @@ mod tests {
     #[test]
     fn generate_scripts_augments_maintainer_scripts_for_unit_in_root_package() {
         let maintainer_scripts = vec![
-            ("test-resources/testroot/debian/config", Some("dummy content")),
-            ("test-resources/testroot/debian/preinst", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/debian/postinst", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/debian/prerm", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/debian/postrm", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/debian/templates", Some("dummy content")),
+            (
+                "test-resources/testroot/debian/config",
+                Some("dummy content"),
+            ),
+            (
+                "test-resources/testroot/debian/preinst",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/debian/postinst",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/debian/prerm",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/debian/postrm",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/debian/templates",
+                Some("dummy content"),
+            ),
         ];
-        generate_scripts_for_package_with_systemd_unit(None, &maintainer_scripts, "test-resources/testroot/debian/some.service");
+        generate_scripts_for_package_with_systemd_unit(
+            None,
+            &maintainer_scripts,
+            "test-resources/testroot/debian/some.service",
+        );
     }
 
     #[test]
     fn generate_scripts_augments_maintainer_scripts_for_unit_in_workspace_package() {
         let maintainer_scripts = vec![
-            ("test-resources/testroot/testchild/debian/config", Some("dummy content")),
-            ("test-resources/testroot/testchild/debian/preinst", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/testchild/debian/postinst", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/testchild/debian/prerm", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/testchild/debian/postrm", Some("dummy content\n#DEBHELPER#")),
-            ("test-resources/testroot/testchild/debian/templates", Some("dummy content")),
+            (
+                "test-resources/testroot/testchild/debian/config",
+                Some("dummy content"),
+            ),
+            (
+                "test-resources/testroot/testchild/debian/preinst",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/testchild/debian/postinst",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/testchild/debian/prerm",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/testchild/debian/postrm",
+                Some("dummy content\n#DEBHELPER#"),
+            ),
+            (
+                "test-resources/testroot/testchild/debian/templates",
+                Some("dummy content"),
+            ),
         ];
         generate_scripts_for_package_with_systemd_unit(
             Some("test_child"),
@@ -469,7 +559,11 @@ mod tests {
             ("test-resources/testroot/debian/prerm", None),
             ("test-resources/testroot/debian/postrm", None),
         ];
-        generate_scripts_for_package_with_systemd_unit(None, &maintainer_scripts, "test-resources/testroot/debian/some.service");
+        generate_scripts_for_package_with_systemd_unit(
+            None,
+            &maintainer_scripts,
+            "test-resources/testroot/debian/some.service",
+        );
     }
 
     #[test]
@@ -513,15 +607,25 @@ mod tests {
 
         // make the unit file available for systemd unit processing
         let source = AssetSource::Path(PathBuf::from(service_file));
-        let target_path = PathBuf::from(format!("lib/systemd/system/{}", filename_from_path_str(service_file)));
-        config.assets.resolved.push(Asset::new(source, target_path, 0o000, IsBuilt::No));
+        let target_path = PathBuf::from(format!(
+            "lib/systemd/system/{}",
+            filename_from_path_str(service_file)
+        ));
+        config
+            .assets
+            .resolved
+            .push(Asset::new(source, target_path, 0o000, IsBuilt::No));
 
         // look in the current dir for maintainer scripts (none, but the systemd
         // unit processing will be skipped if we don't set this)
-        config.maintainer_scripts.get_or_insert(PathBuf::from("debian"));
+        config
+            .maintainer_scripts
+            .get_or_insert(PathBuf::from("debian"));
 
         // enable systemd unit processing
-        config.systemd_units.get_or_insert(vec![SystemdUnitsConfig::default()]);
+        config
+            .systemd_units
+            .get_or_insert(vec![SystemdUnitsConfig::default()]);
 
         // generate scripts and store them in the given archive
         in_ar.generate_scripts(&config).unwrap();

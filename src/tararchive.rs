@@ -1,7 +1,7 @@
-use std::io::Write;
 use crate::error::CDResult;
 use std::collections::HashSet;
 use std::io;
+use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use tar::EntryType;
 use tar::Header as TarHeader;
@@ -33,7 +33,8 @@ impl<W: Write> Archive<W> {
         }
         header.set_entry_type(EntryType::Directory);
         header.set_cksum();
-        self.tar.append_data(&mut header, path_str, &mut io::empty())
+        self.tar
+            .append_data(&mut header, path_str, &mut io::empty())
     }
 
     fn add_parent_directories(&mut self, path: &Path) -> CDResult<()> {

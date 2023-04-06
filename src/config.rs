@@ -65,7 +65,11 @@ impl CargoConfig {
         self.target_specific_command("strip", target_triple)
     }
 
-    fn target_specific_command(&self, command_name: &str, target_triple: &str) -> Option<Cow<'_, Path>> {
+    fn target_specific_command(
+        &self,
+        command_name: &str,
+        target_triple: &str,
+    ) -> Option<Cow<'_, Path>> {
         if let Some(target) = self.target_conf(target_triple) {
             let strip_config = target.get(command_name).and_then(|top| {
                 let as_obj = top.get("path").and_then(|s| s.as_str());
@@ -119,32 +123,50 @@ impl CargoConfig {
 
 #[test]
 fn parse_strip() {
-    let c = CargoConfig::from_str(r#"
+    let c = CargoConfig::from_str(
+        r#"
 [target.i686-unknown-dragonfly]
 linker = "magic-ld"
 strip = "magic-strip"
 
 [target.'foo']
 strip = { path = "strip2" }
-"#, ".".into()).unwrap();
+"#,
+        ".".into(),
+    )
+    .unwrap();
 
-    assert_eq!("magic-strip", c.strip_command("i686-unknown-dragonfly").unwrap().as_os_str());
+    assert_eq!(
+        "magic-strip",
+        c.strip_command("i686-unknown-dragonfly")
+            .unwrap()
+            .as_os_str()
+    );
     assert_eq!("strip2", c.strip_command("foo").unwrap().as_os_str());
     assert_eq!(None, c.strip_command("bar"));
 }
 
 #[test]
 fn parse_objcopy() {
-    let c = CargoConfig::from_str(r#"
+    let c = CargoConfig::from_str(
+        r#"
 [target.i686-unknown-dragonfly]
 linker = "magic-ld"
 objcopy = "magic-objcopy"
 
 [target.'foo']
 objcopy = { path = "objcopy2" }
-"#, ".".into()).unwrap();
+"#,
+        ".".into(),
+    )
+    .unwrap();
 
-    assert_eq!("magic-objcopy", c.objcopy_command("i686-unknown-dragonfly").unwrap().as_os_str());
+    assert_eq!(
+        "magic-objcopy",
+        c.objcopy_command("i686-unknown-dragonfly")
+            .unwrap()
+            .as_os_str()
+    );
     assert_eq!("objcopy2", c.objcopy_command("foo").unwrap().as_os_str());
     assert_eq!(None, c.objcopy_command("bar"));
 }

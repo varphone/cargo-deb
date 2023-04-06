@@ -1,6 +1,6 @@
 use crate::error::*;
-use std::io::{Read, BufWriter};
 use std::io;
+use std::io::{BufWriter, Read};
 use std::ops;
 use std::process::ChildStdin;
 use std::process::{Command, Stdio};
@@ -56,7 +56,10 @@ impl io::Write for Compressor {
 }
 
 impl Compressor {
-    fn new(writer: Writer, ret: impl FnOnce(Writer) -> io::Result<Compressed> + Send + Sync + 'static) -> Self {
+    fn new(
+        writer: Writer,
+        ret: impl FnOnce(Writer) -> io::Result<Compressed> + Send + Sync + 'static,
+    ) -> Self {
         Self {
             writer,
             ret: Box::new(ret),
@@ -108,7 +111,7 @@ fn system_xz(fast: bool) -> CDResult<Compressor> {
         stdout.read_to_end(&mut buf).map(|_| buf)
     });
 
-    let stdin = BufWriter::with_capacity(1<<16, child.stdin.take().unwrap());
+    let stdin = BufWriter::with_capacity(1 << 16, child.stdin.take().unwrap());
     Ok(Compressor::new(Writer::StdIn(stdin), move |stdin| {
         drop(stdin);
         child.wait()?;
@@ -124,17 +127,25 @@ pub fn xz_or_gz(fast: bool, with_system_xz: bool) -> CDResult<Compressor> {
         return system_xz(fast);
     }
 
-    use flate2::Compression;
     use flate2::write::GzEncoder;
+    use flate2::Compression;
 
-    let writer = GzEncoder::new(Vec::new(), if fast { Compression::fast() } else { Compression::best() });
+    let writer = GzEncoder::new(
+        Vec::new(),
+        if fast {
+            Compression::fast()
+        } else {
+            Compression::best()
+        },
+    );
 
-    Ok(Compressor::new(Writer::Gz(writer), move |writer| {
-        match writer {
+    Ok(Compressor::new(
+        Writer::Gz(writer),
+        move |writer| match writer {
             Writer::Gz(w) => Ok(Compressed::Gz(w.finish()?)),
             _ => unreachable!(),
-        }
-    }))
+        },
+    ))
 }
 
 /// Compresses data using the xz2 library
@@ -153,10 +164,8 @@ pub fn xz_or_gz(fast: bool, with_system_xz: bool) -> CDResult<Compressor> {
 
     let writer = xz2::write::XzEncoder::new_stream(Vec::new(), encoder);
 
-    Ok(Compressor::new(Writer::Xz(writer), |writer| {
-        match writer {
-            Writer::Xz(w) => w.finish().map(Compressed::Xz),
-            _ => unreachable!(),
-        }
+    Ok(Compressor::new(Writer::Xz(writer), |writer| match writer {
+        Writer::Xz(w) => w.finish().map(Compressed::Xz),
+        _ => unreachable!(),
     }))
 }

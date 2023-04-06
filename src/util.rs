@@ -88,7 +88,10 @@ pub(crate) trait MyJoin {
 /// ```
 impl MyJoin for BTreeSet<String> {
     fn join(&self, sep: &str) -> String {
-        self.iter().map(|item| item.as_str()).collect::<Vec<&str>>().join(sep)
+        self.iter()
+            .map(|item| item.as_str())
+            .collect::<Vec<&str>>()
+            .join(sep)
     }
 }
 
@@ -98,7 +101,8 @@ pub(crate) mod tests {
     use std::collections::HashMap;
 
     lazy_static! {
-        static ref ERROR_REGEX: regex::Regex = regex::Regex::new(r"^error:(?P<error_name>.+)$").unwrap();
+        static ref ERROR_REGEX: regex::Regex =
+            regex::Regex::new(r"^error:(?P<error_name>.+)$").unwrap();
     }
 
     // ---------------------------------------------------------------------
@@ -206,12 +210,12 @@ pub(crate) mod tests {
     pub(crate) fn read_file_to_string(path: &Path) -> std::io::Result<String> {
         fn str_to_err(str: &str) -> std::io::Result<String> {
             Err(std::io::Error::from(match str {
-                "InvalidInput"     => std::io::ErrorKind::InvalidInput,
-                "Interrupted"      => std::io::ErrorKind::Interrupted,
+                "InvalidInput" => std::io::ErrorKind::InvalidInput,
+                "Interrupted" => std::io::ErrorKind::Interrupted,
                 "PermissionDenied" => std::io::ErrorKind::PermissionDenied,
-                "NotFound"         => std::io::ErrorKind::NotFound,
-                "Other"            => std::io::ErrorKind::Other,
-                _                  => panic!("Unknown I/O ErrorKind '{str}'")
+                "NotFound" => std::io::ErrorKind::NotFound,
+                "Other" => std::io::ErrorKind::Other,
+                _ => panic!("Unknown I/O ErrorKind '{str}'"),
             }))
         }
 
