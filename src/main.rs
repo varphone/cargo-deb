@@ -23,6 +23,7 @@ struct CliOptions {
     deb_revision: Option<String>,
     system_xz: bool,
     profile: Option<String>,
+    cargo_config: Option<String>,
 }
 
 fn main() {
@@ -103,6 +104,12 @@ fn main() {
         "Override cargo build subcommand",
         "subcommand",
     );
+    cli_opts.optopt(
+        "",
+        "cargo-config",
+        "Override cargo configuration file instead of .cargo/config.toml",
+        "path",
+    );
 
     let matches = match cli_opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -151,6 +158,7 @@ fn main() {
         cargo_build_cmd: matches
             .opt_str("cargo-build")
             .unwrap_or("build".to_string()),
+        cargo_config: matches.opt_str("cargo-config"),
         cargo_build_flags: matches.free,
     }) {
         Ok(()) => {}
@@ -197,6 +205,7 @@ fn process(
         deb_revision,
         system_xz,
         profile,
+        cargo_config,
     }: CliOptions,
 ) -> CDResult<()> {
     let target = target.as_deref();
@@ -236,6 +245,8 @@ fn process(
     }
     cargo_build_flags.push(format!("--profile={selected_profile}"));
 
+    listener.info(format!("cargo-config={:?}", cargo_config));
+
     let manifest_path = manifest_path.as_ref().map_or("Cargo.toml", |s| s.as_str());
     let mut options = Config::from_manifest(
         Path::new(manifest_path),
@@ -247,6 +258,7 @@ fn process(
         deb_revision,
         listener,
         selected_profile,
+        cargo_config,
     )?;
     reset_deb_temp_directory(&options)?;
 

@@ -39,7 +39,14 @@ impl CargoConfig {
     }
 
     fn try_parse(dir_path: &Path) -> CDResult<Option<Self>> {
-        let mut path = dir_path.join(".cargo/config.toml");
+        let is_file = fs::metadata(dir_path)
+            .map(|md| md.is_file())
+            .unwrap_or_default();
+        let mut path = if is_file {
+            dir_path.to_path_buf()
+        } else {
+            dir_path.join(".cargo/config.toml")
+        };
         if !path.exists() {
             path = dir_path.join(".cargo/config");
             if !path.exists() {

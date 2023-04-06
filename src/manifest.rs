@@ -417,6 +417,9 @@ pub struct Config {
 
     /// unix timestamp for generated files
     pub default_timestamp: u64,
+
+    /// Override a configuration file
+    pub cargo_config: Option<String>,
 }
 
 impl Config {
@@ -433,6 +436,7 @@ impl Config {
         deb_revision: Option<String>,
         listener: &dyn Listener,
         selected_profile: &str,
+        cargo_config: Option<String>,
     ) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
         let available_package_names = || {
@@ -507,6 +511,7 @@ impl Config {
             listener,
             selected_profile,
             default_timestamp,
+            cargo_config,
         )
     }
 
@@ -528,6 +533,7 @@ impl Config {
         listener: &dyn Listener,
         selected_profile: &str,
         default_timestamp: u64,
+        cargo_config: Option<String>,
     ) -> CDResult<Self> {
         // Cargo cross-compiles to a dir
         let target_dir = if let Some(target) = target {
@@ -646,6 +652,7 @@ impl Config {
                 Some(SystemUnitsSingleOrMultiple::Single(s)) => Some(vec![s]),
                 Some(SystemUnitsSingleOrMultiple::Multi(v)) => Some(v),
             },
+            cargo_config,
         };
         config.take_assets(
             package,
@@ -1022,7 +1029,11 @@ impl Config {
     }
 
     pub(crate) fn cargo_config(&self) -> CDResult<Option<CargoConfig>> {
-        CargoConfig::new(&self.target_dir)
+        if let Some(ref path) = self.cargo_config {
+            CargoConfig::new(path)
+        } else {
+            CargoConfig::new(&self.target_dir)
+        }
     }
 
     /// similar files next to each other improve tarball compression

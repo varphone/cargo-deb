@@ -133,6 +133,10 @@ pub fn cargo_build(
         cmd.args(["--features", &features.join(",")]);
     }
 
+    if let Some(ref cfg) = options.cargo_config {
+        cmd.args(["--config", cfg]);
+    }
+
     log::debug!("cargo build {:?}", cmd.get_args());
 
     let status = cmd
