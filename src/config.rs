@@ -110,6 +110,9 @@ pub struct Config {
     /// Products available in the package
     build_targets: Vec<CargoMetadataTarget>,
     cargo_locking_flags: CargoLockingFlags,
+
+    /// Forwards to `cargo --config`
+    pub cargo_config: Option<String>,
 }
 
 #[derive(Debug)]
@@ -243,6 +246,7 @@ impl Config {
         separate_debug_symbols: Option<bool>,
         compress_debug_symbols: Option<bool>,
         cargo_locking_flags: CargoLockingFlags,
+        cargo_config: Option<String>,
         listener: &dyn Listener,
     ) -> CDResult<(Self, PackageConfig)> {
         // **IMPORTANT**: This function must not create or expect to see any asset files on disk!
@@ -324,6 +328,7 @@ impl Config {
             build_profile_override,
             build_targets,
             cargo_locking_flags,
+            cargo_config,
         };
 
         let package_deb = PackageConfig::new(deb, cargo_package, listener, default_timestamp, overrides, target)?;
@@ -1153,7 +1158,7 @@ mod tests {
         // supply a systemd unit file as if it were available on disk
         let _g = add_test_fs_paths(&[to_canon_static_str("cargo-deb.service")]);
 
-        let (config, mut package_deb) = Config::from_manifest(Some(Path::new("Cargo.toml")), None, None, None, None, DebConfigOverrides::default(), None, None, None, CargoLockingFlags::default(), &mock_listener).unwrap();
+        let (config, mut package_deb) = Config::from_manifest(Some(Path::new("Cargo.toml")), None, None, None, None, DebConfigOverrides::default(), None, None, None, CargoLockingFlags::default(), None, &mock_listener).unwrap();
         config.prepare_assets_before_build(&mut package_deb).unwrap();
 
         let num_unit_assets = package_deb.assets.resolved.iter()
@@ -1171,7 +1176,7 @@ mod tests {
         // supply a systemd unit file as if it were available on disk
         let _g = add_test_fs_paths(&[to_canon_static_str("cargo-deb.service")]);
 
-        let (config, mut package_deb) = Config::from_manifest(Some(Path::new("Cargo.toml")), None, None, None, None, DebConfigOverrides::default(), None, None, None, CargoLockingFlags::default(), &mock_listener).unwrap();
+        let (config, mut package_deb) = Config::from_manifest(Some(Path::new("Cargo.toml")), None, None, None, None, DebConfigOverrides::default(), None, None, None, CargoLockingFlags::default(), None, &mock_listener).unwrap();
         config.prepare_assets_before_build(&mut package_deb).unwrap();
 
         package_deb.systemd_units.get_or_insert(vec![SystemdUnitsConfig::default()]);
