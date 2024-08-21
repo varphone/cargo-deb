@@ -227,6 +227,7 @@ mod tests {
             None,
             None,
             CargoLockingFlags::default(),
+            None,
             mock_listener,
         )
         .unwrap();

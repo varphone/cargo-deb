@@ -114,6 +114,7 @@ impl CargoDeb {
             self.options.separate_debug_symbols,
             self.options.compress_debug_symbols,
             self.options.cargo_locking_flags,
+            self.options.cargo_config.clone(),
             listener,
         )?;
         config.prepare_assets_before_build(&mut package_deb)?;
@@ -177,6 +178,9 @@ pub struct CargoDebOptions {
     pub rsyncable: bool,
     pub profile: Option<String>,
     pub cargo_locking_flags: CargoLockingFlags,
+
+    /// Forwards to `cargo --config`
+    pub cargo_config: Option<String>,
 }
 
 #[derive(Copy, Clone, Default, Debug)]
@@ -224,6 +228,7 @@ impl Default for CargoDebOptions {
             rsyncable: false,
             profile: None,
             cargo_locking_flags: CargoLockingFlags::default(),
+            cargo_config: None,
         }
     }
 }
@@ -311,6 +316,10 @@ pub fn cargo_build(config: &Config, target: Option<&str>, build_command: &str, b
     let features = &config.features;
     if !features.is_empty() {
         cmd.args(["--features", &features.join(",")]);
+    }
+
+    if let Some(ref cfg) = config.cargo_config {
+        cmd.args(["--config", cfg]);
     }
 
     log::debug!("cargo build {:?}", cmd.get_args());

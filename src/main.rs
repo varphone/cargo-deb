@@ -32,6 +32,7 @@ fn main() -> ExitCode {
     cli_opts.optopt("", "profile", "Select which Cargo build profile to use", "release|<custom>");
     cli_opts.optflag("", "no-build", "Assume the project is already built");
     cli_opts.optopt("", "cargo-build", "Override cargo build subcommand", "subcommand");
+    cli_opts.optopt("", "cargo-config", "Override cargo configuration file instead of .cargo/config.toml", "path");
     cli_opts.optflag("", "fast", "Use faster compression, which makes a larger deb file");
     cli_opts.optopt("Z", "compress-type", "Compress with the given compression format", "gz|xz");
     cli_opts.optflag("", "compress-system", "Use the corresponding command-line tool for compression");
@@ -149,6 +150,7 @@ fn main() -> ExitCode {
             frozen: matches.opt_present("frozen"),
             locked: matches.opt_present("locked"),
         },
+        cargo_config: matches.opt_str("cargo-config"),
         cargo_build_flags: matches.free,
     }).process(listener) {
         Ok(()) => ExitCode::SUCCESS,
