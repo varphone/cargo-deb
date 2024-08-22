@@ -55,7 +55,7 @@ pub(crate) fn manifest_version_string<'a>(package: &'a cargo_toml::Package<Cargo
         }
     }
 
-    let revision = revision.unwrap_or("");
+    let revision = revision.unwrap_or("1");
     if !revision.is_empty() && revision != "0" {
         let v = version.to_mut();
         v.push('-');
