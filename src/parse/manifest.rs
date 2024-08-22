@@ -142,6 +142,7 @@ pub(crate) struct CargoDeb {
     pub preserve_symlinks: Option<bool>,
     pub systemd_units: Option<SystemUnitsSingleOrMultiple>,
     pub variants: Option<HashMap<String, CargoDeb>>,
+    pub explicit_conf_files: Option<bool>,
 }
 
 /// Struct containing merge configuration
@@ -287,6 +288,7 @@ impl CargoDeb {
             preserve_symlinks: self.preserve_symlinks.or(parent.preserve_symlinks),
             systemd_units: self.systemd_units.or(parent.systemd_units),
             variants: self.variants.or(parent.variants),
+            explicit_conf_files: self.explicit_conf_files.or(parent.explicit_conf_files),
         }
     }
 }

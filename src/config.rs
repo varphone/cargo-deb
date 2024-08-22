@@ -210,6 +210,9 @@ pub struct PackageConfig {
     pub(crate) systemd_units: Option<Vec<SystemdUnitsConfig>>,
     /// unix timestamp for generated files
     pub default_timestamp: u64,
+
+    /// Automatically probe conf-files from assets if false
+    pub(crate) explicit_conf_files: bool,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -671,6 +674,7 @@ impl PackageConfig {
                 Some(SystemUnitsSingleOrMultiple::Single(s)) => Some(vec![s]),
                 Some(SystemUnitsSingleOrMultiple::Multi(v)) => Some(v),
             },
+            explicit_conf_files: deb.explicit_conf_files.unwrap_or(false),
         })
     }
 
@@ -700,7 +704,11 @@ This will be hard error in a future release of cargo-deb.", source_path.display(
             let matched = u.resolve(self.preserve_symlinks)?;
             self.assets.resolved.extend(matched);
         }
-        self.add_conf_files();
+        if self.explicit_conf_files {
+            log::warn!("automatic conf-file detection is disabled");
+        } else {
+            self.add_conf_files();
+        }
         Ok(())
     }
 
