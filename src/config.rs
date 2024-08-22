@@ -566,7 +566,12 @@ impl Config {
     }
 
     pub(crate) fn cargo_config(&self) -> CDResult<Option<CargoConfig>> {
-        CargoConfig::new(&self.package_manifest_dir)
+        let project_path = if let Some(path) = self.cargo_config.as_ref().map(Path::new).filter(|p| p.is_file()) {
+            path.to_owned()
+        } else {
+            self.package_manifest_dir.to_owned()
+        };
+        CargoConfig::new(project_path)
     }
 
     /// Creates empty (removes files if needed) target/debian/foo directory so that we can start fresh.
