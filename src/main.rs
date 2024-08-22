@@ -120,6 +120,10 @@ fn main() -> ExitCode {
         listener.warning(format!("--deb-version takes precedence over --deb-revision. Revision '{}' will be ignored", deb_revision.as_deref().unwrap_or_default()));
     }
 
+    if let (true, Some(revision)) = (deb_version.is_none(), deb_revision.as_deref()) {
+        listener.info(format!("Override deb-revision with '{}'", revision));
+    }
+
     match CargoDeb::new(CargoDebOptions {
         no_build: matches.opt_present("no-build"),
         strip_override: if matches.opt_present("strip") { Some(true) } else if matches.opt_present("no-strip") { Some(false) } else { None },
