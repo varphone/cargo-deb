@@ -16,6 +16,11 @@ impl CargoConfig {
     #[allow(deprecated)]
     fn new_(project_path: &Path) -> CDResult<Option<Self>> {
         let mut project_path = project_path;
+
+        if let Ok(Some(config)) = Self::try_parse(project_path) {
+            return Ok(Some(config));
+        }
+
         loop {
             if let Some(conf) = Self::try_parse(&project_path.join(".cargo"))? {
                 return Ok(Some(conf));
